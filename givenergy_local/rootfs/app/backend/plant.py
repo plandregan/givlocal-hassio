@@ -19,8 +19,8 @@ import device_store
 
 logger = logging.getLogger("plant")
 
-LIVE_REFRESH_SECONDS = float(os.environ.get("GIVLOCAL_LIVE_REFRESH_SECONDS", "5"))
-FULL_REFRESH_SECONDS = float(os.environ.get("GIVLOCAL_FULL_REFRESH_SECONDS", "30"))
+LIVE_REFRESH_SECONDS = float(os.environ.get("GIVLOCAL_LIVE_REFRESH_SECONDS", "30"))
+FULL_REFRESH_SECONDS = float(os.environ.get("GIVLOCAL_FULL_REFRESH_SECONDS", "120"))
 
 
 def _safe(fn, default=None):

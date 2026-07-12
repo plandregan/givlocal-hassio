@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+- Changed default poll intervals: `live_refresh_seconds` 5 → 30,
+  `full_refresh_seconds` 30 → 120 (still configurable in the add-on's
+  Configuration tab). Existing installs keep whatever value they've already
+  set; this only changes the default for fresh installs.
+
 ## 0.1.2
 
 - Fix: manual connect form did nothing on failure (unhandled fetch rejection,

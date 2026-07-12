@@ -1,8 +1,8 @@
 #!/usr/bin/with-contenv bashio
 LIVE_REFRESH=$(bashio::config 'live_refresh_seconds')
 FULL_REFRESH=$(bashio::config 'full_refresh_seconds')
-export GIVLOCAL_LIVE_REFRESH_SECONDS="${LIVE_REFRESH:-5}"
-export GIVLOCAL_FULL_REFRESH_SECONDS="${FULL_REFRESH:-30}"
+export GIVLOCAL_LIVE_REFRESH_SECONDS="${LIVE_REFRESH:-30}"
+export GIVLOCAL_FULL_REFRESH_SECONDS="${FULL_REFRESH:-120}"
 export GIVLOCAL_DATA_DIR="/data"
 
 cd /app/backend
