@@ -26,7 +26,7 @@ def list_devices():
 
 
 @router.post("/devices/scan")
-def start_scan(subnet_prefix: str | None = None):
+async def start_scan(subnet_prefix: str | None = None):
     discovery.scan_state.start(subnet_prefix)
     return discovery.scan_state.status()
 

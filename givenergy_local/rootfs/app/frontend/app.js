@@ -90,8 +90,13 @@ async function loadDevices() {
 
 async function startScan() {
   $("scan-progress").classList.remove("hidden");
-  await apiPost("/devices/scan");
-  pollScan();
+  $("scan-progress-label").textContent = "Starting scan…";
+  try {
+    await apiPost("/devices/scan");
+    pollScan();
+  } catch (e) {
+    $("scan-progress-label").textContent = "Scan failed: " + e.message;
+  }
 }
 
 async function pollScan() {
