@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.1
+
+- Fix: add-on stuck in a restart crash loop ("address already in use" on
+  8099, repeating every few seconds). Root cause: the custom s6 `finish`
+  script used an execlineb/`s6-test` invocation that doesn't exist in this
+  base image ("unable to spawn s6-test: No such file or directory"), so it
+  errored out on every service exit instead of cleanly tearing the process
+  down — the next restart attempt then fought the previous run for the port.
+  Removed the broken `finish` script entirely; a longrun service doesn't
+  need one for normal operation, s6-overlay's default exit handling covers
+  it. If you're seeing this crash loop, fully **stop** the add-on (not just
+  update) before starting the new version, so the orphaned process is
+  cleared by the container stop rather than another failed internal restart.
+
 ## 0.2.0
 
 Frontend redesign to closely match the real GivLocal app's layout, based on a

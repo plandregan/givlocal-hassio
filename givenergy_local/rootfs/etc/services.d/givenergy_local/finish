@@ -1,5 +1,0 @@
-#!/usr/bin/execlineb -S0
-if { s6-test $1 -ne 0 }
-  if { s6-test $1 -ne 256 }
-    foreground { s6-echo "GivEnergy Local backend exited with code $1" }
-/run/s6/basedir/bin/halt
