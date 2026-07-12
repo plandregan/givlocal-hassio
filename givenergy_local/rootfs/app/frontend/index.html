@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GivEnergy Local</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-icon">&#9728;</span>
+    <span>GivEnergy Local</span>
+  </div>
+  <div id="status-pill" class="status-pill status-pill--offline">Not connected</div>
+</header>
+
+<nav id="tabs" class="tabs hidden">
+  <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+  <button class="tab-btn" data-tab="schedules">Schedules</button>
+  <button class="tab-btn" data-tab="inverter">Inverter</button>
+  <button class="tab-btn tab-btn--right" id="btn-devices">Devices</button>
+</nav>
+
+<main id="app">
+
+  <section id="view-devices" class="view">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Devices</h2>
+        <button id="btn-scan" class="btn btn-primary">Scan LAN</button>
+      </div>
+      <div id="scan-progress" class="scan-progress hidden">
+        <div class="progress-bar"><div id="scan-progress-fill" class="progress-fill"></div></div>
+        <span id="scan-progress-label">Scanning…</span>
+      </div>
+      <div id="device-list" class="device-list"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Manual Connection</h2>
+      <form id="manual-form" class="row">
+        <input id="manual-host" type="text" placeholder="IP address or hostname" required>
+        <input id="manual-port" type="number" placeholder="Port" value="8899">
+        <button type="submit" class="btn btn-secondary">Connect</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="view-dashboard" class="view hidden">
+    <div id="fault-banner" class="fault-banner hidden"></div>
+
+    <div class="panel flow-panel">
+      <div class="flow">
+        <div class="flow-node" id="node-solar"><div class="flow-icon">&#9728;</div><div class="flow-label">Solar</div><div class="flow-value" id="val-solar">-- W</div></div>
+        <div class="flow-node" id="node-grid"><div class="flow-icon">&#9889;</div><div class="flow-label">Grid</div><div class="flow-value" id="val-grid">-- W</div></div>
+        <div class="flow-node flow-node--center" id="node-battery"><div class="flow-icon">&#128267;</div><div class="flow-label">Battery</div><div class="flow-value" id="val-battery-soc">--%</div><div class="flow-sub" id="val-battery-power">-- W</div></div>
+        <div class="flow-node" id="node-home"><div class="flow-icon">&#127968;</div><div class="flow-label">Home</div><div class="flow-value" id="val-home">-- W</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Today's Totals</h2>
+      <div class="totals-grid">
+        <div class="total-item"><span class="total-label">Solar</span><span id="tot-solar" class="total-value">-- kWh</span></div>
+        <div class="total-item"><span class="total-label">Consumption</span><span id="tot-consumption" class="total-value">-- kWh</span></div>
+        <div class="total-item"><span class="total-label">Battery Charged</span><span id="tot-charge" class="total-value">-- kWh</span></div>
+        <div class="total-item"><span class="total-label">Battery Discharged</span><span id="tot-discharge" class="total-value">-- kWh</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Quick Actions</h2>
+      <div class="quick-actions">
+        <button class="btn" id="qa-charge">Charge Now</button>
+        <button class="btn" id="qa-discharge">Discharge Now</button>
+        <button class="btn" id="qa-pause">Pause</button>
+        <button class="btn btn-secondary" id="qa-resume">Resume Normal</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Fault Log</h2>
+      </div>
+      <div id="fault-log" class="fault-log"><p class="muted">No faults recorded.</p></div>
+    </div>
+  </section>
+
+  <section id="view-schedules" class="view hidden">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Charge Slots</h2>
+        <label class="switch-label"><input type="checkbox" id="charge-enabled"> AC Charge Enabled</label>
+      </div>
+      <div id="charge-slots" class="slot-list"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Discharge Slots</h2>
+        <label class="switch-label"><input type="checkbox" id="discharge-enabled"> Discharge Schedule Enabled</label>
+      </div>
+      <div id="discharge-slots" class="slot-list"></div>
+    </div>
+  </section>
+
+  <section id="view-inverter" class="view hidden">
+    <div class="panel">
+      <h2>Identity</h2>
+      <div id="identity-block" class="identity-block"></div>
+      <div class="row">
+        <button class="btn btn-secondary" id="btn-sync-clock">Sync Clock</button>
+        <button class="btn btn-danger" id="btn-restart">Restart Inverter</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Battery Control</h2>
+      <label class="switch-label"><input type="checkbox" id="discharge-mode"> Match Demand (avoid exporting)</label>
+
+      <label class="field-label">Battery Reserve: <span id="reserve-value">--%</span></label>
+      <input type="range" id="reserve-slider" min="4" max="100" step="1">
+
+      <label class="field-label">Charge Power Limit: <span id="charge-limit-value">--%</span></label>
+      <input type="range" id="charge-limit-slider" min="0" max="100" step="1">
+
+      <label class="field-label">Discharge Power Limit: <span id="discharge-limit-value">--%</span></label>
+      <input type="range" id="discharge-limit-slider" min="0" max="100" step="1">
+
+      <h3>Pause Slot</h3>
+      <div class="row">
+        <input type="time" id="pause-start">
+        <input type="time" id="pause-end">
+        <button class="btn btn-secondary" id="btn-set-pause-slot">Set</button>
+        <button class="btn btn-secondary" id="btn-clear-pause-slot">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Advanced</h2>
+      <label class="field-label">Active Power Rate: <span id="apr-value">--%</span></label>
+      <input type="range" id="apr-slider" min="0" max="100" step="1">
+
+      <label class="field-label">Export Priority</label>
+      <select id="export-priority">
+        <option value="0">Load First</option>
+        <option value="1">Battery First</option>
+        <option value="2">Grid First</option>
+      </select>
+
+      <label class="switch-label"><input type="checkbox" id="eps-enabled"> Enable EPS</label>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
