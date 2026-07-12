@@ -118,17 +118,32 @@ $("manual-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const host = $("manual-host").value.trim();
   const port = parseInt($("manual-port").value, 10) || 8899;
-  const device = await apiPost("/devices/manual", { host, port });
-  await connectDevice(device.id);
+  const submitBtn = $("manual-form").querySelector("button[type=submit]");
+  const originalLabel = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Connecting…";
+  try {
+    const device = await apiPost("/devices/manual", { host, port });
+    await connectDevice(device.id);
+  } catch (e) {
+    alert("Could not add device: " + e.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
+  }
 });
 
 async function connectDevice(deviceId) {
+  const cards = document.querySelectorAll("#device-list button, #manual-form button");
+  cards.forEach((b) => { b.disabled = true; });
   try {
     await apiPost(`/connect/${deviceId}`);
     currentDevice = deviceId;
     enterConnectedView();
   } catch (e) {
     alert("Could not connect: " + e.message);
+  } finally {
+    cards.forEach((b) => { b.disabled = false; });
   }
 }
 
