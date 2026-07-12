@@ -1,4 +1,8 @@
-const API = "/api";
+// Relative (no leading slash) so requests resolve against the current document
+// URL. Required under Home Assistant Ingress, which serves this app at a
+// per-session prefix (e.g. /api/hassio_ingress/<token>/) — an absolute "/api/..."
+// path would escape that prefix and hit Home Assistant's own core API instead.
+const API = "api";
 let ws = null;
 let currentDevice = null;
 let latestStatus = null;
@@ -160,8 +164,11 @@ function enterConnectedView() {
 
 function connectWebSocket() {
   if (ws) ws.close();
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(`${proto}//${location.host}${API}/ws/live`);
+  // Resolve relative to the current document URL (preserves the Ingress prefix),
+  // then swap the scheme to ws:/wss: — same reasoning as the API constant above.
+  const wsUrl = new URL(`${API}/ws/live`, location.href);
+  wsUrl.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(wsUrl.href);
   ws.onmessage = (evt) => {
     const data = JSON.parse(evt.data);
     latestStatus = data;

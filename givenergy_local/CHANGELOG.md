@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4
+
+- Fix: all API/WebSocket calls failed with "404: Not Found" when accessed
+  through Home Assistant Ingress ("192.168.x.x:8123 says Could not add
+  device: 404"). The frontend used absolute `/api/...` paths, which under
+  Ingress's per-session URL prefix escape to Home Assistant's own core API
+  instead of the add-on. Now uses relative paths that resolve correctly
+  against the Ingress-prefixed page URL. Confirmed working end-to-end
+  against a real inverter.
+
 ## 0.1.3
 
 - Changed default poll intervals: `live_refresh_seconds` 5 → 30,
