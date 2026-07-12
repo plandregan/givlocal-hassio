@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2
+
+- Fix: ingress opened GivTCP's web UI instead of this add-on. Root cause:
+  port 8099 is GivTCP's default web UI port, and with `host_network: true`
+  both add-ons compete for the same literal host port — whichever bound it
+  first wins, and Ingress simply proxies to whatever's listening there. This
+  was also the real reason behind the "address already in use" crash loop
+  (0.2.1's finish-script fix was a real bug too, but not the whole story).
+  Moved this add-on off 8099 entirely, onto 8377.
+
 ## 0.2.1
 
 - Fix: add-on stuck in a restart crash loop ("address already in use" on

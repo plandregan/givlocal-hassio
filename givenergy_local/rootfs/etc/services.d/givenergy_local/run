@@ -6,4 +6,4 @@ export GIVLOCAL_FULL_REFRESH_SECONDS="${FULL_REFRESH:-120}"
 export GIVLOCAL_DATA_DIR="/data"
 
 cd /app/backend
-exec python3 -m uvicorn main:app --host 0.0.0.0 --port 8099
+exec python3 -m uvicorn main:app --host 0.0.0.0 --port 8377
