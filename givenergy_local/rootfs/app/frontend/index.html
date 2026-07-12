@@ -272,7 +272,70 @@
       <div class="acc-item" data-section="commissioning">
         <button class="acc-header">Commissioning<span class="acc-chevron">&#8964;</span></button>
         <div class="acc-body">
-          <p class="muted small">Installer-tier settings (grid code, meter type, battery capacity, CT direction) are planned for a later release.</p>
+          <p class="muted small">Settings here are typically set once during installation. Changes are confirmed before being sent.</p>
+
+          <div class="control-row">
+            <span class="control-icon">&#128268;</span><span class="control-label">Meter Type</span>
+            <select id="c-meter-type" class="control-input">
+              <option value="1">EM115</option>
+              <option value="0">CT / EM418</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#8646;</span><span class="control-label">CT Direction (EM115)</span>
+            <label class="toggle"><input type="checkbox" id="c-ct-em115"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#8646;</span><span class="control-label">CT Direction (EM418)</span>
+            <label class="toggle"><input type="checkbox" id="c-ct-em418"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#128267;</span><span class="control-label">Battery Type</span>
+            <select id="c-battery-type" class="control-input">
+              <option value="1">Lithium-ion</option>
+              <option value="0">Lead Acid</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#128267;</span><span class="control-label">Battery Capacity</span>
+            <input type="number" id="c-battery-capacity" class="control-input" style="width:90px" min="0">
+            <span class="muted small" style="margin-left:-4px">Ah</span>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#9728;</span><span class="control-label">PV Startup Voltage</span>
+            <input type="number" id="c-pv-startup" class="control-input" style="width:90px" min="0" max="200" step="0.1">
+            <span class="muted small" style="margin-left:-4px">V</span>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#9728;</span><span class="control-label">PV Input Mode</span>
+            <select id="c-pv-input-mode" class="control-input">
+              <option value="0">Independent Strings</option>
+              <option value="1">Combined</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#8593;</span><span class="control-label">Grid Export Limit</span>
+            <input type="number" id="c-export-limit" class="control-input" style="width:90px" min="0">
+            <span class="muted small" style="margin-left:-4px">W</span>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#8595;</span><span class="control-label">Grid Import Current Limit</span>
+            <input type="number" id="c-import-limit" class="control-input" style="width:90px" min="0">
+            <span class="muted small" style="margin-left:-4px">A</span>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#8595;</span><span class="control-label">Import Limit Enabled</span>
+            <label class="toggle"><input type="checkbox" id="c-import-limit-enabled"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="control-row" style="margin-top:16px">
+            <span class="control-icon">&#9888;</span><span class="control-label">Force Off Grid</span>
+            <label class="toggle"><input type="checkbox" id="c-force-off-grid"><span class="toggle-slider"></span></label>
+          </div>
+          <p class="muted small">Isolates the inverter from the grid. Use with care.</p>
+
+          <p class="muted small">Grid Code is not exposed by the protocol reference used to build this
+          add-on and isn't implemented — the app won't guess at an unverified register for a
+          grid-compliance setting.</p>
         </div>
       </div>
 

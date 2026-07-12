@@ -1,5 +1,5 @@
 name: "GivEnergy Local"
-version: "0.2.2"
+version: "0.3.0"
 slug: "givenergy_local"
 description: "Local Modbus TCP monitoring and control for GivEnergy inverters and batteries — no cloud account needed."
 url: "https://github.com/plandregan/givlocal-hassio"

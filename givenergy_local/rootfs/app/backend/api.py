@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 import battery
+import commissioning
 import device_store
 import discovery
 import faults
@@ -253,6 +254,77 @@ async def api_restart_inverter():
 @router.post("/inverter/sync-clock")
 async def api_sync_clock():
     await battery.sync_clock(_require_session())
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Commissioning (installer tier)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/commissioning/meter-type")
+async def api_set_meter_type(body: PercentBody):
+    await commissioning.set_meter_type(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/ct-direction-em115")
+async def api_set_ct_em115(body: ToggleBody):
+    await commissioning.set_ct_direction_em115(_require_session(), body.enabled)
+    return {"ok": True}
+
+
+@router.post("/commissioning/ct-direction-em418")
+async def api_set_ct_em418(body: ToggleBody):
+    await commissioning.set_ct_direction_em418(_require_session(), body.enabled)
+    return {"ok": True}
+
+
+@router.post("/commissioning/battery-type")
+async def api_set_battery_type(body: PercentBody):
+    await commissioning.set_battery_type(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/battery-capacity")
+async def api_set_battery_capacity(body: PercentBody):
+    await commissioning.set_battery_capacity_ah(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/pv-startup-voltage")
+async def api_set_pv_startup_voltage(body: PercentBody):
+    await commissioning.set_pv_startup_voltage(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/grid-export-limit")
+async def api_set_grid_export_limit(body: PercentBody):
+    await commissioning.set_grid_export_limit_w(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/grid-import-limit")
+async def api_set_grid_import_limit(body: PercentBody):
+    await commissioning.set_grid_import_limit_a(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/grid-import-limit-enabled")
+async def api_set_grid_import_limit_enabled(body: ToggleBody):
+    await commissioning.set_grid_import_limit_enabled(_require_session(), body.enabled)
+    return {"ok": True}
+
+
+@router.post("/commissioning/pv-input-mode")
+async def api_set_pv_input_mode(body: PercentBody):
+    await commissioning.set_pv_input_mode(_require_session(), body.value)
+    return {"ok": True}
+
+
+@router.post("/commissioning/force-off-grid")
+async def api_set_force_off_grid(body: ToggleBody):
+    await commissioning.set_force_off_grid(_require_session(), body.enabled)
     return {"ok": True}
 
 

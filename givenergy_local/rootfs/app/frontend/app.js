@@ -404,6 +404,19 @@ function renderInverterTab(data) {
   $("calibration-status").textContent = CALIBRATION_LABELS[battery.calibration_stage] || "Off";
   if (settings.export_priority != null) $("export-priority").value = settings.export_priority;
   $("eps-enabled").checked = !!settings.enable_eps;
+
+  const c = data.commissioning || {};
+  if (c.meter_type != null) $("c-meter-type").value = String(c.meter_type);
+  $("c-ct-em115").checked = !!c.ct_direction_em115_reversed;
+  $("c-ct-em418").checked = !!c.ct_direction_em418_reversed;
+  if (c.battery_type != null) $("c-battery-type").value = String(c.battery_type);
+  if (c.battery_capacity_ah != null) $("c-battery-capacity").value = c.battery_capacity_ah;
+  if (c.pv_startup_voltage != null) $("c-pv-startup").value = c.pv_startup_voltage;
+  if (c.pv_input_mode != null) $("c-pv-input-mode").value = String(c.pv_input_mode);
+  if (c.grid_export_limit_w != null) $("c-export-limit").value = c.grid_export_limit_w;
+  if (c.grid_import_limit_a != null) $("c-import-limit").value = c.grid_import_limit_a;
+  $("c-import-limit-enabled").checked = !!c.grid_import_limit_enabled;
+  $("c-force-off-grid").checked = !!c.force_off_grid;
 }
 
 function debounceCommit(el, fn) {
@@ -448,6 +461,52 @@ $("btn-restart").addEventListener("click", () => {
   if (confirm("Restart the inverter now? It will briefly go offline.")) {
     apiPost("/inverter/restart");
   }
+});
+
+// ---------------------------------------------------------------------------
+// Commissioning (installer tier) — every write is confirmed first, matching
+// the real app's "Confirm Commissioning Writes" behaviour.
+// ---------------------------------------------------------------------------
+
+function confirmedPost(path, body, message) {
+  if (!confirm(message)) return;
+  apiPost(path, body).catch((e) => alert("Write failed: " + e.message));
+}
+
+$("c-meter-type").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/meter-type", { value: parseInt(e.target.value, 10) }, "Change Meter Type?");
+});
+$("c-ct-em115").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/ct-direction-em115", { enabled: e.target.checked }, "Flip CT direction for EM115?");
+});
+$("c-ct-em418").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/ct-direction-em418", { enabled: e.target.checked }, "Flip CT direction for EM418?");
+});
+$("c-battery-type").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/battery-type", { value: parseInt(e.target.value, 10) }, "Change Battery Type?");
+});
+$("c-battery-capacity").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/battery-capacity", { value: parseInt(e.target.value, 10) }, "Set Battery Capacity?");
+});
+$("c-pv-startup").addEventListener("change", (e) => {
+  const volts = parseFloat(e.target.value);
+  confirmedPost("/commissioning/pv-startup-voltage", { value: Math.round(volts * 10) }, "Set PV Startup Voltage?");
+});
+$("c-pv-input-mode").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/pv-input-mode", { value: parseInt(e.target.value, 10) }, "Change PV Input Mode?");
+});
+$("c-export-limit").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/grid-export-limit", { value: parseInt(e.target.value, 10) }, "Set Grid Export Limit?");
+});
+$("c-import-limit").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/grid-import-limit", { value: parseInt(e.target.value, 10) }, "Set Grid Import Current Limit?");
+});
+$("c-import-limit-enabled").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/grid-import-limit-enabled", { enabled: e.target.checked }, "Toggle Grid Import Limit Enabled?");
+});
+$("c-force-off-grid").addEventListener("change", (e) => {
+  confirmedPost("/commissioning/force-off-grid", { enabled: e.target.checked },
+    e.target.checked ? "Force the inverter OFF GRID now? This isolates it from the grid." : "Restore normal grid connection?");
 });
 
 // ---------------------------------------------------------------------------

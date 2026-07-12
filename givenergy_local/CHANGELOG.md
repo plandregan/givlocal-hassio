@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0
+
+- Added the Commissioning section (was a placeholder): Meter Type, CT
+  Direction (EM115/EM418), Battery Type, Battery Capacity, PV Startup
+  Voltage, PV Input Mode, Grid Export Limit, Grid Import Current Limit
+  (+ enabled), and Force Off Grid. Register addresses cross-referenced
+  against the GivEnergy Hybrid Modbus RTU protocol doc (v4.4.1) and verified
+  against givenergy-modbus's own field definitions — same register map.
+  Every write requires confirmation, matching the real app's "Confirm
+  Commissioning Writes" behaviour. Grid Code is intentionally not
+  implemented — it isn't a single documented register in either source, and
+  guessing at one for a grid-compliance setting isn't worth the risk.
+- Fix: any rejected or failed register write (e.g. a write the connected
+  model's firmware doesn't permit) crashed with a raw 500 error. Added a
+  global exception handler that surfaces these as clean 400/502 responses
+  with a readable message instead. Confirmed live: this model's firmware
+  rejects Grid Export Limit (HR26) and CT Direction EM115 (HR48) even
+  though the library allows reading them — those controls will now show a
+  clear "not permitted for AC inverter" error rather than doing nothing.
+
 ## 0.2.2
 
 - Fix: ingress opened GivTCP's web UI instead of this add-on. Root cause:
