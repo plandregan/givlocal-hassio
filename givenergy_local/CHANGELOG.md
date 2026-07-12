@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Fix: manual connect form did nothing on failure (unhandled fetch rejection,
+  same root cause pattern as the scan hang). Now shows connecting state and
+  surfaces errors.
+
 ## 0.1.1
 
 - Fix: LAN scan on the Devices screen hung indefinitely (sync route calling
