@@ -5,7 +5,7 @@
 const API = "api";
 let ws = null;
 let currentDevice = null;
-let latestStatus = null;
+let userEditingInverter = false;
 
 function $(id) { return document.getElementById(id); }
 
@@ -29,11 +29,6 @@ async function apiPut(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body || {}),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-async function apiDelete(path) {
-  const res = await fetch(API + path, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -68,26 +63,40 @@ $("btn-devices").addEventListener("click", () => {
 // Devices / discovery
 // ---------------------------------------------------------------------------
 
+function timeAgo(ts) {
+  if (!ts) return "never";
+  const s = Math.floor(Date.now() / 1000 - ts);
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return `${Math.floor(s / 3600)}h ago`;
+}
+
 async function loadDevices() {
   const devices = await apiGet("/devices");
   const list = $("device-list");
   list.innerHTML = "";
   if (devices.length === 0) {
-    list.innerHTML = '<p class="muted">No devices yet — scan your network or connect manually.</p>';
+    list.innerHTML = '<p class="muted small">No devices yet — scan your network or connect manually below.</p>';
     return;
   }
   devices.forEach((d) => {
+    const name = d.custom_name || d.model || "Inverter";
     const card = document.createElement("div");
     card.className = "device-card";
-    const name = d.custom_name || d.model || d.host;
     card.innerHTML = `
       <div class="device-card__info">
-        <span class="device-card__name">${name} ${d.favourite ? "&#9733;" : ""}</span>
-        <span class="device-card__meta">${d.host}:${d.port} ${d.serial ? "&middot; " + d.serial : ""}</span>
+        <div class="device-card__name">${name}${d.favourite ? ' <span class="star">&#9733;</span>' : ""}</div>
+        <div class="device-card__meta">
+          IP Address: ${d.host}<br>
+          ${d.firmware ? `Firmware Version: ${d.firmware}<br>` : ""}
+          ${d.serial ? `Serial Number: ${d.serial}<br>` : ""}
+          Last Seen: ${timeAgo(d.last_seen)}
+        </div>
       </div>
-      <button class="btn btn-primary">Connect</button>
+      <span class="device-card__chevron">&#8250;</span>
     `;
-    card.querySelector("button").addEventListener("click", () => connectDevice(d.id));
+    card.addEventListener("click", () => connectDevice(d.id));
     list.appendChild(card);
   });
 }
@@ -105,9 +114,7 @@ async function startScan() {
 
 async function pollScan() {
   const status = await apiGet("/devices/scan");
-  const pct = status.total ? Math.round((status.scanned / status.total) * 100) : 0;
-  $("scan-progress-fill").style.width = pct + "%";
-  $("scan-progress-label").textContent = `Scanning ${status.subnet_prefix}.0/24 — ${status.scanned}/${status.total}`;
+  $("scan-progress-label").textContent = `Scanning ${status.subnet_prefix}.x… ${status.total ? Math.round((status.scanned / status.total) * 100) : 0}%`;
   await loadDevices();
   if (status.running) {
     setTimeout(pollScan, 800);
@@ -117,6 +124,7 @@ async function pollScan() {
 }
 
 $("btn-scan").addEventListener("click", startScan);
+$("btn-stop-scan").addEventListener("click", () => { $("scan-progress").classList.add("hidden"); });
 
 $("manual-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -138,8 +146,8 @@ $("manual-form").addEventListener("submit", async (e) => {
 });
 
 async function connectDevice(deviceId) {
-  const cards = document.querySelectorAll("#device-list button, #manual-form button");
-  cards.forEach((b) => { b.disabled = true; });
+  const clickable = document.querySelectorAll(".device-card, #manual-form button");
+  clickable.forEach((b) => { b.style.pointerEvents = "none"; b.style.opacity = "0.6"; });
   try {
     await apiPost(`/connect/${deviceId}`);
     currentDevice = deviceId;
@@ -147,7 +155,7 @@ async function connectDevice(deviceId) {
   } catch (e) {
     alert("Could not connect: " + e.message);
   } finally {
-    cards.forEach((b) => { b.disabled = false; });
+    clickable.forEach((b) => { b.style.pointerEvents = ""; b.style.opacity = ""; });
   }
 }
 
@@ -155,7 +163,6 @@ function enterConnectedView() {
   $("tabs").classList.remove("hidden");
   showView("dashboard");
   connectWebSocket();
-  loadIdentityAndSettings();
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +178,6 @@ function connectWebSocket() {
   ws = new WebSocket(wsUrl.href);
   ws.onmessage = (evt) => {
     const data = JSON.parse(evt.data);
-    latestStatus = data;
     renderStatus(data);
   };
   ws.onclose = () => {
@@ -179,39 +185,63 @@ function connectWebSocket() {
   };
 }
 
-function fmtW(v) { return v === null || v === undefined ? "-- W" : `${v} W`; }
+function fmtW(v) { return v === null || v === undefined ? "-- W" : `${Math.round(v)} W`; }
 function fmtKwh(v) { return v === null || v === undefined ? "-- kWh" : `${v.toFixed(2)} kWh`; }
 
+function setDotVisible(id, visible) {
+  const dot = $(id);
+  dot.classList.toggle("hidden", !visible);
+}
+
 function renderStatus(data) {
-  const pill = $("status-pill");
-  if (data.connected) {
-    pill.textContent = "Connected — " + data.host;
-    pill.className = "status-pill status-pill--online";
-  } else {
-    pill.textContent = "Not connected";
-    pill.className = "status-pill status-pill--offline";
+  const dots = [$("status-dot"), $("status-dot-2")];
+  const texts = [$("status-text"), $("status-text-2")];
+  if (!data.connected) {
+    dots.forEach((d) => { d.className = "status-dot offline"; });
+    texts.forEach((t) => { t.textContent = "Not connected"; });
     return;
   }
+  const age = data.last_live_refresh ? (Date.now() / 1000 - data.last_live_refresh) : null;
+  // No refresh yet right after connecting isn't a fault — treat as "settling", not offline.
+  const cls = age === null ? "stale" : age < 60 ? "online" : age < 300 ? "stale" : "offline";
+  dots.forEach((d) => { d.className = "status-dot " + cls; });
+  texts.forEach((t) => { t.textContent = `Connected — ${data.host}`; });
 
   const pf = data.power_flow || {};
+  const battery = data.battery || {};
+  const totals = data.totals_today || {};
+
   $("val-solar").textContent = fmtW(pf.solar_w);
   const gridW = (pf.grid_import_w || 0) - (pf.grid_export_w || 0);
-  $("val-grid").textContent = fmtW(gridW);
+  $("val-grid").textContent = fmtW(Math.abs(gridW));
+  $("grid-state-label").textContent = gridW > 5 ? "Importing" : gridW < -5 ? "Exporting" : "Idle";
+
   const battW = (pf.battery_charge_w || 0) - (pf.battery_discharge_w || 0);
-  $("val-battery-power").textContent = fmtW(battW);
-  // Home load = solar + battery discharge + grid import - battery charge - grid export.
+  $("val-battery-power").textContent = fmtW(Math.abs(battW));
+  $("battery-state-label").textContent = battW > 5 ? "Charging" : battW < -5 ? "Discharging" : "Idle";
+
   const homeW = (pf.solar_w || 0) + (pf.battery_discharge_w || 0) + (pf.grid_import_w || 0)
     - (pf.battery_charge_w || 0) - (pf.grid_export_w || 0);
-  $("val-home").textContent = fmtW(Math.round(homeW));
+  $("val-home").textContent = fmtW(Math.max(0, homeW));
 
-  const battery = data.battery || {};
-  $("val-battery-soc").textContent = battery.average_soc != null ? `${battery.average_soc}%` : "--%";
+  const soc = battery.average_soc;
+  $("val-battery-soc").textContent = soc != null ? `${soc}%` : "--%";
+  $("battery-ring").style.setProperty("--soc", soc != null ? soc : 0);
+  $("battery-bar-fill").style.width = soc != null ? `${soc}%` : "0%";
+  $("battery-bar-text").textContent = soc != null ? `${soc}%` : "--%";
 
-  const totals = data.totals_today || {};
+  setDotVisible("dot-solar", (pf.solar_w || 0) > 5);
+  setDotVisible("dot-battery", Math.abs(battW) > 5);
+  setDotVisible("dot-grid", Math.abs(gridW) > 5);
+
   $("tot-solar").textContent = fmtKwh(totals.solar_kwh);
-  $("tot-consumption").textContent = fmtKwh(totals.consumption_kwh);
-  $("tot-charge").textContent = fmtKwh(totals.battery_charge_kwh);
-  $("tot-discharge").textContent = fmtKwh(totals.battery_discharge_kwh);
+  $("tot-home").textContent = fmtKwh(totals.consumption_kwh);
+  $("tot-import").textContent = fmtKwh(totals.import_kwh);
+  $("tot-export").textContent = fmtKwh(totals.export_kwh);
+  $("ov-tot-solar").textContent = fmtKwh(totals.solar_kwh);
+  $("ov-tot-home").textContent = fmtKwh(totals.consumption_kwh);
+  $("ov-tot-import").textContent = fmtKwh(totals.import_kwh);
+  $("ov-tot-export").textContent = fmtKwh(totals.export_kwh);
 
   const faultsList = data.faults || [];
   const banner = $("fault-banner");
@@ -222,34 +252,24 @@ function renderStatus(data) {
     banner.classList.add("hidden");
   }
   renderFaultLog();
-
-  // Keep inverter-tab sliders in sync only if the user isn't actively dragging them.
-  syncInverterFields(data);
+  renderInverterTab(data);
 }
 
 async function renderFaultLog() {
   try {
     const log = await apiGet("/faults");
-    const el = $("fault-log");
-    if (!log.length) {
-      el.innerHTML = '<p class="muted">No faults recorded.</p>';
-      return;
-    }
-    el.innerHTML = log
-      .slice()
-      .reverse()
-      .map((entry, i) => {
-        const idx = log.length - 1 - i;
-        const detected = new Date(entry.detected_at * 1000).toLocaleString();
-        const cleared = entry.cleared_at
-          ? new Date(entry.cleared_at * 1000).toLocaleString()
-          : '<span class="fault-active">Active</span>';
-        return `<div class="fault-entry"><span>${entry.name}<br><span class="muted">Detected: ${detected}</span></span><span>${cleared}</span></div>`;
-      })
-      .join("");
-  } catch (e) {
-    // no active device
-  }
+    const html = !log.length
+      ? '<p class="muted">No faults recorded.</p>'
+      : log.slice().reverse().map((entry, i) => {
+          const detected = new Date(entry.detected_at * 1000).toLocaleString();
+          const cleared = entry.cleared_at
+            ? new Date(entry.cleared_at * 1000).toLocaleString()
+            : '<span class="fault-active">Active</span>';
+          return `<div class="fault-entry"><span>${entry.name}<br><span class="muted">Detected: ${detected}</span></span><span>${cleared}</span></div>`;
+        }).join("");
+    $("fault-log").innerHTML = html;
+    $("inv-fault-log").innerHTML = html;
+  } catch (e) { /* no active device */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -296,7 +316,7 @@ async function loadSchedules() {
   chargeEl.innerHTML = "";
   dischargeEl.innerHTML = "";
   data.charge_slots.forEach((slot, i) => {
-    if (slot === null && i > 1) return; // only show supported slots + first two
+    if (slot === null && i > 1) return;
     chargeEl.appendChild(slotRow("charge", i + 1, slot));
   });
   data.discharge_slots.forEach((slot, i) => {
@@ -311,57 +331,87 @@ $("charge-enabled").addEventListener("change", (e) => apiPost("/schedules/charge
 $("discharge-enabled").addEventListener("change", (e) => apiPost("/schedules/discharge-enabled", { enabled: e.target.checked }));
 
 // ---------------------------------------------------------------------------
-// Inverter tab
+// Inverter tab (accordion)
 // ---------------------------------------------------------------------------
 
-let userEditing = false;
+document.querySelectorAll(".acc-header").forEach((header) => {
+  header.addEventListener("click", () => {
+    header.closest(".acc-item").classList.toggle("open");
+  });
+});
 
-async function loadIdentityAndSettings() {
-  const data = await apiGet("/status");
-  syncInverterFields(data);
-}
+const CALIBRATION_LABELS = { 0: "Off", 1: "Discharging", 2: "Set Lower Limit", 3: "Charging", 4: "Set Upper Limit", 5: "Balancing", 6: "Set Full Capacity", 7: "Finishing" };
+const PAUSE_MODE_VALUES = [0, 1, 2, 3];
 
-function syncInverterFields(data) {
-  if (userEditing) return;
+function renderInverterTab(data) {
+  if (userEditingInverter) return;
   const id = data.identity || {};
-  $("identity-block").innerHTML = `
-    <div><span>Model</span>${id.model || "--"}</div>
-    <div><span>Serial</span>${id.serial || "--"}</div>
-    <div><span>DSP FW</span>${id.dsp_firmware_version ?? "--"}</div>
-    <div><span>ARM FW</span>${id.arm_firmware_version ?? "--"}</div>
-    <div><span>Inverter Time</span>${id.system_time || "--"}</div>
+  const battery = data.battery || {};
+  const settings = data.settings || {};
+  const telemetry = data.telemetry || {};
+
+  $("ov-model").textContent = id.model || "--";
+  $("ov-serial").textContent = id.serial || "--";
+  $("ov-connection").innerHTML = `
+    <div class="kv-row"><span>Product</span><span>${id.model || "--"}</span></div>
+    <div class="kv-row"><span>Host</span><span>${data.host || "--"}</span></div>
+    <div class="kv-row"><span>Inverter Serial</span><span>${id.serial || "--"}</span></div>
+    <div class="kv-row"><span>Firmware Version</span><span>D${id.dsp_firmware_version ?? "--"}-A${id.arm_firmware_version ?? "--"}</span></div>
+    <div class="kv-row"><span>Detected Meters</span><span>${id.meters_detected ?? "--"}</span></div>
+    <div class="kv-row"><span>Status</span><span>${data.connected ? "Connected" : "Disconnected"}</span></div>
   `;
 
-  const battery = data.battery || {};
-  $("discharge-mode").checked = battery.discharge_mode === 1;
+  $("telemetry-list").innerHTML = `
+    <div class="kv-row"><span>String 1 Voltage</span><span>${telemetry.string_1_voltage ?? "--"} V</span></div>
+    <div class="kv-row"><span>String 2 Voltage</span><span>${telemetry.string_2_voltage ?? "--"} V</span></div>
+    <div class="kv-row"><span>String 1 Energy Today</span><span>${(telemetry.string_1_energy_today ?? 0).toFixed ? telemetry.string_1_energy_today.toFixed(2) : "--"} kWh</span></div>
+    <div class="kv-row"><span>String 2 Energy Today</span><span>${(telemetry.string_2_energy_today ?? 0).toFixed ? telemetry.string_2_energy_today.toFixed(2) : "--"} kWh</span></div>
+    <div class="kv-row"><span>Grid Voltage</span><span>${telemetry.grid_voltage ?? "--"} V</span></div>
+    <div class="kv-row"><span>Grid Frequency</span><span>${telemetry.grid_frequency ?? "--"} Hz</span></div>
+    <div class="kv-row"><span>Inverter Temp</span><span>${telemetry.temp_inverter ?? "--"} &#8451;</span></div>
+    <div class="kv-row"><span>Battery Temp</span><span>${telemetry.temp_battery ?? "--"} &#8451;</span></div>
+    <div class="kv-row"><span>Charger Temp</span><span>${telemetry.temp_charger ?? "--"} &#8451;</span></div>
+  `;
+
+  $("eco-mode").checked = battery.discharge_mode === 1;
+  $("pause-start").value = battery.pause_slot_start || "";
+  $("pause-end").value = battery.pause_slot_end || "";
+  if (battery.battery_pause_mode != null && PAUSE_MODE_VALUES.includes(battery.battery_pause_mode)) {
+    $("pause-mode").value = String(battery.battery_pause_mode);
+  }
   if (battery.battery_soc_reserve != null) {
     $("reserve-slider").value = battery.battery_soc_reserve;
     $("reserve-value").textContent = battery.battery_soc_reserve + "%";
   }
-  if (battery.battery_charge_limit != null) {
-    $("charge-limit-slider").value = battery.battery_charge_limit;
-    $("charge-limit-value").textContent = battery.battery_charge_limit + "%";
-  }
-  if (battery.battery_discharge_limit != null) {
-    $("discharge-limit-slider").value = battery.battery_discharge_limit;
-    $("discharge-limit-value").textContent = battery.battery_discharge_limit + "%";
-  }
 
-  const settings = data.settings || {};
   if (settings.active_power_rate != null) {
     $("apr-slider").value = settings.active_power_rate;
     $("apr-value").textContent = settings.active_power_rate + "%";
   }
+  const battMaxKw = (id.battery_max_power_w || 0) / 1000;
+  if (battery.battery_charge_limit != null) {
+    $("charge-limit-slider").value = battery.battery_charge_limit;
+    $("charge-limit-value").textContent = battMaxKw ? `${(battMaxKw * battery.battery_charge_limit / 100).toFixed(1)} kW` : `${battery.battery_charge_limit}%`;
+  }
+  if (battery.battery_discharge_limit != null) {
+    $("discharge-limit-slider").value = battery.battery_discharge_limit;
+    $("discharge-limit-value").textContent = battMaxKw ? `${(battMaxKw * battery.battery_discharge_limit / 100).toFixed(1)} kW` : `${battery.battery_discharge_limit}%`;
+  }
+
+  $("clock-inverter-time").textContent = id.system_time || "--";
+
+  $("rtc-enable").checked = !!settings.enable_rtc;
+  $("calibration-status").textContent = CALIBRATION_LABELS[battery.calibration_stage] || "Off";
   if (settings.export_priority != null) $("export-priority").value = settings.export_priority;
   $("eps-enabled").checked = !!settings.enable_eps;
 }
 
 function debounceCommit(el, fn) {
   let timer = null;
-  el.addEventListener("input", () => { userEditing = true; });
+  el.addEventListener("input", () => { userEditingInverter = true; });
   el.addEventListener("change", () => {
     clearTimeout(timer);
-    timer = setTimeout(async () => { await fn(el.value); userEditing = false; }, 150);
+    timer = setTimeout(async () => { await fn(el.value); userEditingInverter = false; }, 150);
   });
 }
 
@@ -370,11 +420,9 @@ debounceCommit($("reserve-slider"), async (v) => {
   await apiPost("/battery/reserve", { value: parseInt(v, 10) });
 });
 debounceCommit($("charge-limit-slider"), async (v) => {
-  $("charge-limit-value").textContent = v + "%";
   await apiPost("/battery/charge-limit", { value: parseInt(v, 10) });
 });
 debounceCommit($("discharge-limit-slider"), async (v) => {
-  $("discharge-limit-value").textContent = v + "%";
   await apiPost("/battery/discharge-limit", { value: parseInt(v, 10) });
 });
 debounceCommit($("apr-slider"), async (v) => {
@@ -382,17 +430,17 @@ debounceCommit($("apr-slider"), async (v) => {
   await apiPost("/battery/active-power-rate", { value: parseInt(v, 10) });
 });
 
-$("discharge-mode").addEventListener("change", (e) => apiPost("/battery/discharge-mode", { enabled: e.target.checked }));
+$("eco-mode").addEventListener("change", (e) => apiPost("/battery/discharge-mode", { enabled: e.target.checked }));
 $("export-priority").addEventListener("change", (e) => apiPost("/battery/export-priority", { value: parseInt(e.target.value, 10) }));
 $("eps-enabled").addEventListener("change", (e) => apiPost("/battery/eps", { enabled: e.target.checked }));
+$("rtc-enable").addEventListener("change", (e) => apiPost("/battery/rtc", { enabled: e.target.checked }));
+$("calibration-select").addEventListener("change", (e) => apiPost("/battery/calibration", { value: parseInt(e.target.value, 10) }));
 
-$("btn-set-pause-slot").addEventListener("click", () => {
-  apiPost("/battery/pause-slot", { start: $("pause-start").value, end: $("pause-end").value });
+$("btn-apply-pause").addEventListener("click", () => {
+  apiPost("/battery/pause-slot", { start: $("pause-start").value || null, end: $("pause-end").value || null });
 });
-$("btn-clear-pause-slot").addEventListener("click", () => {
-  $("pause-start").value = "";
-  $("pause-end").value = "";
-  apiPost("/battery/pause-slot", { start: null, end: null });
+$("pause-mode").addEventListener("change", (e) => {
+  apiPost("/battery/pause-mode", { value: parseInt(e.target.value, 10) });
 });
 
 $("btn-sync-clock").addEventListener("click", () => apiPost("/inverter/sync-clock"));

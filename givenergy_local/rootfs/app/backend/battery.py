@@ -67,6 +67,10 @@ async def set_eps(session: PlantSession, enabled: bool) -> None:
     await _apply(session, commands.set_enable_eps(enabled))
 
 
+async def set_rtc(session: PlantSession, enabled: bool) -> None:
+    await _apply(session, commands.set_enable_rtc(enabled))
+
+
 async def set_pause_mode(session: PlantSession, mode: int) -> None:
     """Immediate pause override (0=Not Paused, 1=Pause Charge, 2=Pause Discharge, 3=Pause Both)."""
     await _apply(session, commands.set_battery_pause_mode(BatteryPauseMode(mode)))

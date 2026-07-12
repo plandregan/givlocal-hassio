@@ -8,18 +8,15 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">
-    <span class="brand-icon">&#9728;</span>
-    <span>GivEnergy Local</span>
-  </div>
-  <div id="status-pill" class="status-pill status-pill--offline">Not connected</div>
+  <button class="icon-btn" id="btn-settings" title="Settings">&#9881;</button>
+  <div class="brand" id="brand-title">GivEnergy Local</div>
+  <button class="icon-btn" id="btn-devices" title="Devices">&#8677;</button>
 </header>
 
 <nav id="tabs" class="tabs hidden">
-  <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-  <button class="tab-btn" data-tab="schedules">Schedules</button>
-  <button class="tab-btn" data-tab="inverter">Inverter</button>
-  <button class="tab-btn tab-btn--right" id="btn-devices">Devices</button>
+  <button class="tab-btn active" data-tab="dashboard"><span class="tab-icon">&#8962;</span>Dashboard</button>
+  <button class="tab-btn" data-tab="schedules"><span class="tab-icon">&#128197;</span>Schedules</button>
+  <button class="tab-btn" data-tab="inverter"><span class="tab-icon">&#9881;</span>Inverter</button>
 </nav>
 
 <main id="app">
@@ -28,61 +25,88 @@
     <div class="panel">
       <div class="panel-header">
         <h2>Devices</h2>
-        <button id="btn-scan" class="btn btn-primary">Scan LAN</button>
+        <button id="btn-scan" class="link-btn">Scan LAN</button>
       </div>
       <div id="scan-progress" class="scan-progress hidden">
-        <div class="progress-bar"><div id="scan-progress-fill" class="progress-fill"></div></div>
+        <span class="spinner"></span>
         <span id="scan-progress-label">Scanning…</span>
+        <button id="btn-stop-scan" class="link-btn">Stop</button>
       </div>
       <div id="device-list" class="device-list"></div>
+      <p class="muted small">Swipe or tap a device to connect. Long-press to rename or remove.</p>
     </div>
 
     <div class="panel">
-      <h2>Manual Connection</h2>
+      <h3 class="section-label">Manual Connection</h3>
       <form id="manual-form" class="row">
-        <input id="manual-host" type="text" placeholder="IP address or hostname" required>
-        <input id="manual-port" type="number" placeholder="Port" value="8899">
-        <button type="submit" class="btn btn-secondary">Connect</button>
+        <input id="manual-host" type="text" placeholder="IP address" required>
+        <input id="manual-port" type="number" placeholder="Port" value="8899" class="port-input">
+        <button type="submit" class="btn btn-primary">Connect</button>
       </form>
+      <p class="muted small">Enter an inverter IP address, then tap Connect.</p>
     </div>
   </section>
 
   <section id="view-dashboard" class="view hidden">
     <div id="fault-banner" class="fault-banner hidden"></div>
+    <div class="status-line"><span id="status-dot" class="status-dot"></span><span id="status-text">Not connected</span></div>
 
-    <div class="panel flow-panel">
-      <div class="flow">
-        <div class="flow-node" id="node-solar"><div class="flow-icon">&#9728;</div><div class="flow-label">Solar</div><div class="flow-value" id="val-solar">-- W</div></div>
-        <div class="flow-node" id="node-grid"><div class="flow-icon">&#9889;</div><div class="flow-label">Grid</div><div class="flow-value" id="val-grid">-- W</div></div>
-        <div class="flow-node flow-node--center" id="node-battery"><div class="flow-icon">&#128267;</div><div class="flow-label">Battery</div><div class="flow-value" id="val-battery-soc">--%</div><div class="flow-sub" id="val-battery-power">-- W</div></div>
-        <div class="flow-node" id="node-home"><div class="flow-icon">&#127968;</div><div class="flow-label">Home</div><div class="flow-value" id="val-home">-- W</div></div>
+    <div class="flow-ring">
+      <svg viewBox="0 0 100 100" class="flow-svg" preserveAspectRatio="xMidYMid meet">
+        <circle cx="50" cy="53" r="40" class="flow-ring-circle"/>
+        <line x1="50" y1="53" x2="50" y2="17" class="flow-line" id="line-solar"/>
+        <line x1="50" y1="53" x2="21" y2="80" class="flow-line" id="line-battery"/>
+        <line x1="50" y1="53" x2="79" y2="80" class="flow-line" id="line-grid"/>
+        <circle class="flow-dot hidden" id="dot-solar" cx="50" cy="35" r="1.8"/>
+        <circle class="flow-dot hidden" id="dot-battery" cx="35.5" cy="66.5" r="1.8"/>
+        <circle class="flow-dot hidden" id="dot-grid" cx="64.5" cy="66.5" r="1.8"/>
+      </svg>
+      <div class="flow-node flow-node--solar" id="node-solar">
+        <div class="flow-node-circle flow-node-circle--solar"><span class="flow-node-icon">&#9728;</span></div>
+        <div class="flow-node-value" id="val-solar">-- W</div>
+      </div>
+      <div class="flow-node flow-node--home" id="node-home">
+        <div class="flow-node-circle flow-node-circle--home"><span class="flow-node-icon">&#8962;</span><span class="flow-node-label">Home</span></div>
+        <div class="flow-node-value" id="val-home">-- W</div>
+      </div>
+      <div class="flow-node flow-node--battery" id="node-battery">
+        <div class="flow-node-circle flow-node-circle--battery" id="battery-ring"><span class="flow-node-pct" id="val-battery-soc">--%</span></div>
+        <div class="flow-node-value" id="val-battery-power">-- W</div>
+        <div class="flow-node-sub" id="battery-state-label">Idle</div>
+      </div>
+      <div class="flow-node flow-node--grid" id="node-grid">
+        <div class="flow-node-circle flow-node-circle--grid"><span class="flow-node-icon">&#9889;</span></div>
+        <div class="flow-node-value" id="val-grid">-- W</div>
+        <div class="flow-node-sub" id="grid-state-label">Idle</div>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="qa-btn" id="qa-charge"><span class="qa-icon qa-icon--charge">&#9889;</span>Charge Now</button>
+      <button class="qa-btn" id="qa-discharge"><span class="qa-icon qa-icon--discharge">&#128267;</span>Discharge Now</button>
+      <button class="qa-btn" id="qa-pause"><span class="qa-icon qa-icon--pause">&#10074;&#10074;</span>Pause</button>
+      <button class="qa-btn" id="qa-resume"><span class="qa-icon qa-icon--resume">&#8635;</span>Resume</button>
+    </div>
+
+    <div class="panel battery-bar-panel">
+      <div class="battery-bar-track">
+        <div class="battery-bar-fill" id="battery-bar-fill"></div>
+        <span class="battery-bar-text" id="battery-bar-text">--%</span>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Today's Totals</h2>
+      <h3 class="section-label">Today's Totals</h3>
       <div class="totals-grid">
-        <div class="total-item"><span class="total-label">Solar</span><span id="tot-solar" class="total-value">-- kWh</span></div>
-        <div class="total-item"><span class="total-label">Consumption</span><span id="tot-consumption" class="total-value">-- kWh</span></div>
-        <div class="total-item"><span class="total-label">Battery Charged</span><span id="tot-charge" class="total-value">-- kWh</span></div>
-        <div class="total-item"><span class="total-label">Battery Discharged</span><span id="tot-discharge" class="total-value">-- kWh</span></div>
+        <div class="total-item total-item--solar"><span class="total-icon">&#9728;</span><span class="total-value" id="tot-solar">-- kWh</span><span class="total-label">Solar</span></div>
+        <div class="total-item total-item--home"><span class="total-icon">&#8962;</span><span class="total-value" id="tot-home">-- kWh</span><span class="total-label">Home</span></div>
+        <div class="total-item total-item--import"><span class="total-icon">&#8595;</span><span class="total-value" id="tot-import">-- kWh</span><span class="total-label">Import</span></div>
+        <div class="total-item total-item--export"><span class="total-icon">&#8593;</span><span class="total-value" id="tot-export">-- kWh</span><span class="total-label">Export</span></div>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Quick Actions</h2>
-      <div class="quick-actions">
-        <button class="btn" id="qa-charge">Charge Now</button>
-        <button class="btn" id="qa-discharge">Discharge Now</button>
-        <button class="btn" id="qa-pause">Pause</button>
-        <button class="btn btn-secondary" id="qa-resume">Resume Normal</button>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <h2>Fault Log</h2>
-      </div>
+      <h3 class="section-label">Fault Log</h3>
       <div id="fault-log" class="fault-log"><p class="muted">No faults recorded.</p></div>
     </div>
   </section>
@@ -91,64 +115,167 @@
     <div class="panel">
       <div class="panel-header">
         <h2>Charge Slots</h2>
-        <label class="switch-label"><input type="checkbox" id="charge-enabled"> AC Charge Enabled</label>
+        <label class="switch-label"><input type="checkbox" id="charge-enabled"> AC Charge</label>
       </div>
       <div id="charge-slots" class="slot-list"></div>
     </div>
     <div class="panel">
       <div class="panel-header">
         <h2>Discharge Slots</h2>
-        <label class="switch-label"><input type="checkbox" id="discharge-enabled"> Discharge Schedule Enabled</label>
+        <label class="switch-label"><input type="checkbox" id="discharge-enabled"> Schedule Enabled</label>
       </div>
       <div id="discharge-slots" class="slot-list"></div>
     </div>
   </section>
 
   <section id="view-inverter" class="view hidden">
-    <div class="panel">
-      <h2>Identity</h2>
-      <div id="identity-block" class="identity-block"></div>
-      <div class="row">
-        <button class="btn btn-secondary" id="btn-sync-clock">Sync Clock</button>
-        <button class="btn btn-danger" id="btn-restart">Restart Inverter</button>
+    <div class="status-line"><span id="status-dot-2" class="status-dot"></span><span id="status-text-2">Not connected</span></div>
+
+    <div class="accordion" id="inverter-accordion">
+
+      <div class="acc-item" data-section="overview">
+        <button class="acc-header">Overview<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div class="overview-plant-card">
+            <div class="overview-plant-name" id="ov-model">--</div>
+            <div class="overview-plant-serial" id="ov-serial">--</div>
+          </div>
+          <h4 class="acc-subhead">Energy Stats</h4>
+          <div class="totals-grid totals-grid--overview">
+            <div class="total-item total-item--solar"><span class="total-icon">&#9728;</span><span class="total-value" id="ov-tot-solar">-- kWh</span><span class="total-label">Solar (Today)</span></div>
+            <div class="total-item total-item--home"><span class="total-icon">&#8962;</span><span class="total-value" id="ov-tot-home">-- kWh</span><span class="total-label">Home (Today)</span></div>
+            <div class="total-item total-item--import"><span class="total-icon">&#8595;</span><span class="total-value" id="ov-tot-import">-- kWh</span><span class="total-label">Import (Today)</span></div>
+            <div class="total-item total-item--export"><span class="total-icon">&#8593;</span><span class="total-value" id="ov-tot-export">-- kWh</span><span class="total-label">Export (Today)</span></div>
+          </div>
+          <h4 class="acc-subhead">Connection</h4>
+          <div class="kv-list" id="ov-connection"></div>
+        </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <h2>Battery Control</h2>
-      <label class="switch-label"><input type="checkbox" id="discharge-mode"> Match Demand (avoid exporting)</label>
-
-      <label class="field-label">Battery Reserve: <span id="reserve-value">--%</span></label>
-      <input type="range" id="reserve-slider" min="4" max="100" step="1">
-
-      <label class="field-label">Charge Power Limit: <span id="charge-limit-value">--%</span></label>
-      <input type="range" id="charge-limit-slider" min="0" max="100" step="1">
-
-      <label class="field-label">Discharge Power Limit: <span id="discharge-limit-value">--%</span></label>
-      <input type="range" id="discharge-limit-slider" min="0" max="100" step="1">
-
-      <h3>Pause Slot</h3>
-      <div class="row">
-        <input type="time" id="pause-start">
-        <input type="time" id="pause-end">
-        <button class="btn btn-secondary" id="btn-set-pause-slot">Set</button>
-        <button class="btn btn-secondary" id="btn-clear-pause-slot">Clear</button>
+      <div class="acc-item" data-section="faults">
+        <button class="acc-header">Fault Log<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div id="inv-fault-log" class="fault-log"><p class="muted">No faults recorded.</p></div>
+        </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <h2>Advanced</h2>
-      <label class="field-label">Active Power Rate: <span id="apr-value">--%</span></label>
-      <input type="range" id="apr-slider" min="0" max="100" step="1">
+      <div class="acc-item" data-section="telemetry">
+        <button class="acc-header">Live Telemetry<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div class="kv-list" id="telemetry-list"></div>
+        </div>
+      </div>
 
-      <label class="field-label">Export Priority</label>
-      <select id="export-priority">
-        <option value="0">Load First</option>
-        <option value="1">Battery First</option>
-        <option value="2">Grid First</option>
-      </select>
+      <div class="acc-item" data-section="battery">
+        <button class="acc-header">Battery Control<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div class="control-row">
+            <span class="control-icon">&#127807;</span><span class="control-label">Eco Mode</span>
+            <label class="toggle"><input type="checkbox" id="eco-mode"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#128337;</span><span class="control-label">Pause Start</span>
+            <input type="time" id="pause-start" class="control-input">
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#8635;</span><span class="control-label">Pause End</span>
+            <input type="time" id="pause-end" class="control-input">
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#10074;&#10074;</span><span class="control-label">Pause Mode</span>
+            <select id="pause-mode" class="control-input">
+              <option value="0">Not Paused</option>
+              <option value="1">Pause Charge</option>
+              <option value="2">Pause Discharge</option>
+              <option value="3">Pause Charge &amp; Discharge</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary btn-block" id="btn-apply-pause">Apply Pause Slot</button>
+          <div class="slider-row">
+            <div class="slider-row-header"><span class="control-icon">&#128267;</span><span class="control-label">Battery Reserve</span><span class="slider-value" id="reserve-value">--%</span></div>
+            <input type="range" id="reserve-slider" min="4" max="100" step="1">
+          </div>
+          <p class="muted small">Battery Reserve sets the minimum SOC the inverter will discharge to.</p>
+        </div>
+      </div>
 
-      <label class="switch-label"><input type="checkbox" id="eps-enabled"> Enable EPS</label>
+      <div class="acc-item" data-section="limits">
+        <button class="acc-header">Power Limits<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div class="slider-row">
+            <div class="slider-row-header"><span class="control-icon">&#9881;</span><span class="control-label">Active Power Rate</span><span class="slider-value" id="apr-value">--%</span></div>
+            <input type="range" id="apr-slider" min="0" max="100" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-row-header"><span class="control-icon">&#9889;</span><span class="control-label">DC Charge Limit</span><span class="slider-value" id="charge-limit-value">-- kW</span></div>
+            <input type="range" id="charge-limit-slider" min="0" max="100" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-row-header"><span class="control-icon">&#9889;</span><span class="control-label">DC Discharge Limit</span><span class="slider-value" id="discharge-limit-value">-- kW</span></div>
+            <input type="range" id="discharge-limit-slider" min="0" max="100" step="1">
+          </div>
+          <p class="muted small">Active Power Rate limits overall inverter output. Charge and Discharge Power Limits cap battery power.</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-section="clock">
+        <button class="acc-header">Clock<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div class="kv-list">
+            <div class="kv-row"><span>Inverter Time</span><span id="clock-inverter-time">--</span></div>
+          </div>
+          <button class="btn btn-secondary btn-block" id="btn-sync-clock">Sync Clock</button>
+        </div>
+      </div>
+
+      <div class="acc-item" data-section="advanced">
+        <button class="acc-header">Advanced<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <div class="control-row">
+            <span class="control-icon">&#8635;</span><span class="control-label">RTC Enable</span>
+            <label class="toggle"><input type="checkbox" id="rtc-enable"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#128267;</span><span class="control-label">Battery SOC Calibration</span>
+            <span class="control-value" id="calibration-status">Off</span>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#9654;</span><span class="control-label">Start Calibration</span>
+            <select id="calibration-select" class="control-input">
+              <option value="0">Off / Stop</option>
+              <option value="3">Charge Only</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#128268;</span><span class="control-label">Export Power Priority</span>
+            <select id="export-priority" class="control-input">
+              <option value="0">Load First</option>
+              <option value="1">Battery First</option>
+              <option value="2">Grid First</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <span class="control-icon">&#9889;</span><span class="control-label">Enable EPS</span>
+            <label class="toggle"><input type="checkbox" id="eps-enabled"><span class="toggle-slider"></span></label>
+          </div>
+          <p class="muted small">Changes in this section can affect inverter operating behaviour.</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-section="service">
+        <button class="acc-header">Service<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <button class="btn btn-danger btn-block" id="btn-restart">Restart Inverter</button>
+        </div>
+      </div>
+
+      <div class="acc-item" data-section="commissioning">
+        <button class="acc-header">Commissioning<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <p class="muted small">Installer-tier settings (grid code, meter type, battery capacity, CT direction) are planned for a later release.</p>
+        </div>
+      </div>
+
     </div>
   </section>
 

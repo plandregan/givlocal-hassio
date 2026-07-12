@@ -196,9 +196,27 @@ async def api_set_eps(body: ToggleBody):
     return {"ok": True}
 
 
+@router.post("/battery/rtc")
+async def api_set_rtc(body: ToggleBody):
+    await battery.set_rtc(_require_session(), body.enabled)
+    return {"ok": True}
+
+
+@router.post("/battery/calibration")
+async def api_set_calibration(body: PercentBody):
+    await battery.calibrate_battery_soc(_require_session(), body.value)
+    return {"ok": True}
+
+
 @router.post("/battery/pause-slot")
 async def api_set_pause_slot(body: PauseSlotBody):
     await battery.set_pause_slot(_require_session(), body.start, body.end)
+    return {"ok": True}
+
+
+@router.post("/battery/pause-mode")
+async def api_set_pause_mode(body: PercentBody):
+    await battery.set_pause_mode(_require_session(), body.value)
     return {"ok": True}
 
 

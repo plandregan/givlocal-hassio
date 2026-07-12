@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.0
+
+Frontend redesign to closely match the real GivLocal app's layout, based on a
+screen recording of the actual app:
+
+- Dashboard rebuilt as a circular power-flow diagram (Solar/Home/Battery/Grid
+  nodes with a percentage-ring battery node and animated flow indicators),
+  matching the real app instead of the previous generic grid layout.
+- Devices screen restyled to the real app's compact card format (name + star,
+  IP/firmware/serial/last-seen rows, chevron).
+- Inverter tab rebuilt as a collapsible accordion (Overview, Fault Log, Live
+  Telemetry, Battery Control, Power Limits, Clock, Advanced, Service,
+  Commissioning placeholder) instead of one long flat page.
+- New controls: RTC Enable toggle, Battery SOC Calibration status/start,
+  dedicated immediate Pause Mode control, DC Charge/Discharge Limit now shown
+  in kW (computed from the detected battery's rated power) to match the real
+  app, not just the raw register percentage.
+- New Overview section: plant identity card, Energy Stats (Solar/Home/Import/
+  Export today), Connection info block.
+- New Live Telemetry section: string voltages/energy, grid voltage/frequency,
+  inverter/battery/charger temperatures.
+
 ## 0.1.4
 
 - Fix: all API/WebSocket calls failed with "404: Not Found" when accessed
