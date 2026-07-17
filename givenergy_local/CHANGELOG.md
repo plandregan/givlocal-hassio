@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0
+
+- Fix: battery SOC showed "--%" on some inverters. `average_soc` was computed
+  only from the per-pack LV battery list, which is empty on HV/AIO/Gateway
+  systems (no per-pack "soc" field exists for those topologies in the
+  library). Now uses the inverter's own aggregate `battery_soc` (IR59) as
+  the primary source, which is present regardless of battery topology.
+- Added a working Settings panel (the gear icon previously did nothing):
+  shows the configured live/full refresh intervals and a Disconnect action.
+- Added a Debug section under the Inverter tab: raw Holding/Input register
+  read (any address/count/slave — reads aren't safety-gated), register
+  write (tries the library's installer-tier and standard-tier register
+  sets in turn), a raw hex command box that writes bytes directly to the
+  socket bypassing all framing/safety checks, and a live raw TX/RX frame
+  log (serials redacted, everything else intact). Verified live: reads
+  return real register values, and the frame log captures real traffic
+  during a manual register read.
+
 ## 0.3.0
 
 - Added the Commissioning section (was a placeholder): Meter Type, CT

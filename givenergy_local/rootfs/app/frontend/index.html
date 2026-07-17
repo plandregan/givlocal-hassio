@@ -21,6 +21,20 @@
 
 <main id="app">
 
+  <section id="view-settings" class="view hidden">
+    <div class="panel">
+      <h2>App Settings</h2>
+      <div class="kv-list">
+        <div class="kv-row"><span>Live Refresh</span><span id="cfg-live-refresh">--</span></div>
+        <div class="kv-row"><span>Full Refresh</span><span id="cfg-full-refresh">--</span></div>
+      </div>
+      <p class="muted small">Refresh intervals are set in the add-on's Configuration tab in Home Assistant.</p>
+    </div>
+    <div class="panel">
+      <button class="btn btn-danger btn-block" id="btn-disconnect">Disconnect</button>
+    </div>
+  </section>
+
   <section id="view-devices" class="view">
     <div class="panel">
       <div class="panel-header">
@@ -336,6 +350,55 @@
           <p class="muted small">Grid Code is not exposed by the protocol reference used to build this
           add-on and isn't implemented — the app won't guess at an unverified register for a
           grid-compliance setting.</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-section="debug">
+        <button class="acc-header">Debug<span class="acc-chevron">&#8964;</span></button>
+        <div class="acc-body">
+          <p class="muted small">Advanced/expert tools. Register reads are safe; writes and raw
+          commands go directly to the inverter with no safety checks beyond what the device
+          itself enforces — use with care.</p>
+
+          <h4 class="acc-subhead">Read Register</h4>
+          <div class="row">
+            <select id="dbg-read-type" class="control-input" style="flex:0 0 90px">
+              <option value="HR">Holding</option>
+              <option value="IR">Input</option>
+            </select>
+            <input type="number" id="dbg-read-addr" placeholder="Address" class="control-input" style="flex:1">
+            <input type="number" id="dbg-read-count" placeholder="Count" value="1" min="1" max="60" class="control-input" style="flex:0 0 70px">
+          </div>
+          <div class="row">
+            <input type="number" id="dbg-read-slave" placeholder="Slave (optional, hex or dec)" class="control-input" style="flex:1">
+            <button class="btn btn-secondary" id="btn-dbg-read">Read</button>
+          </div>
+          <pre id="dbg-read-result" class="debug-output"></pre>
+
+          <h4 class="acc-subhead">Write Register</h4>
+          <div class="row">
+            <input type="number" id="dbg-write-addr" placeholder="Address" class="control-input" style="flex:1">
+            <input type="number" id="dbg-write-value" placeholder="Value" class="control-input" style="flex:1">
+            <input type="number" id="dbg-write-slave" placeholder="Slave" class="control-input" style="flex:0 0 70px">
+          </div>
+          <button class="btn btn-danger btn-block" id="btn-dbg-write">Write</button>
+          <p id="dbg-write-result" class="debug-output"></p>
+
+          <h4 class="acc-subhead">Raw Hex Command</h4>
+          <p class="muted small">Bytes are written directly to the TCP socket, bypassing all
+          framing/safety checks. Space-separated hex, e.g. <code>50 51 52 53 00 01</code>.</p>
+          <div class="row">
+            <input type="text" id="dbg-raw-hex" placeholder="50 51 52 53 00 01" class="control-input" style="flex:1">
+            <button class="btn btn-danger" id="btn-dbg-raw">Send</button>
+          </div>
+
+          <h4 class="acc-subhead">Raw Frame Log</h4>
+          <div class="row">
+            <button class="btn btn-secondary" id="btn-dbg-log-start">Start Capture</button>
+            <button class="btn btn-secondary" id="btn-dbg-log-stop">Stop Capture</button>
+            <button class="btn btn-secondary" id="btn-dbg-log-clear">Clear</button>
+          </div>
+          <pre id="dbg-log" class="debug-output debug-log"></pre>
         </div>
       </div>
 

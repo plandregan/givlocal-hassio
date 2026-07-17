@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 import battery
 import commissioning
+import debug_tools
 import device_store
 import discovery
 import faults
@@ -326,6 +327,87 @@ async def api_set_pv_input_mode(body: PercentBody):
 async def api_set_force_off_grid(body: ToggleBody):
     await commissioning.set_force_off_grid(_require_session(), body.enabled)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Debug tools
+# ---------------------------------------------------------------------------
+
+
+class DebugReadBody(BaseModel):
+    reg_type: str  # "HR" or "IR"
+    address: int
+    count: int = 1
+    slave: int | None = None
+
+
+class DebugWriteBody(BaseModel):
+    address: int
+    value: int
+    slave: int | None = None
+
+
+class DebugHexBody(BaseModel):
+    hex: str
+
+
+@router.post("/debug/read")
+async def api_debug_read(body: DebugReadBody):
+    values = await debug_tools.read_registers(_require_session(), body.reg_type, body.address, body.count, body.slave)
+    return {"values": values}
+
+
+@router.post("/debug/write")
+async def api_debug_write(body: DebugWriteBody):
+    await debug_tools.write_register(_require_session(), body.address, body.value, body.slave)
+    return {"ok": True}
+
+
+@router.post("/debug/raw-hex")
+async def api_debug_raw_hex(body: DebugHexBody):
+    n = await debug_tools.send_raw_hex(_require_session(), body.hex)
+    return {"ok": True, "bytes_sent": n}
+
+
+@router.post("/debug/capture/start")
+async def api_debug_capture_start():
+    await _require_session().start_debug_capture()
+    return {"ok": True}
+
+
+@router.post("/debug/capture/stop")
+def api_debug_capture_stop():
+    _require_session().stop_debug_capture()
+    return {"ok": True}
+
+
+@router.get("/debug/log")
+def api_debug_log():
+    session = plant.manager.session
+    if session is None:
+        return {"active": False, "entries": []}
+    return {"active": session.debug_capture_active(), "entries": list(session.debug_log)}
+
+
+@router.delete("/debug/log")
+def api_debug_log_clear():
+    session = plant.manager.session
+    if session is not None:
+        session.debug_log.clear()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# App config (read-only, for the Settings panel)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/config")
+def get_config():
+    return {
+        "live_refresh_seconds": plant.LIVE_REFRESH_SECONDS,
+        "full_refresh_seconds": plant.FULL_REFRESH_SECONDS,
+    }
 
 
 # ---------------------------------------------------------------------------

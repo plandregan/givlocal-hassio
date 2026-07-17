@@ -8,6 +8,7 @@ one) — multi-device quick-switch is a later addition.
 """
 
 import asyncio
+import collections
 import logging
 import os
 import time
@@ -16,6 +17,10 @@ from givenergy_modbus.client.client import Client
 from givenergy_modbus.exceptions import CommunicationError, RefreshFailed, RefreshPartiallySucceeded
 
 import device_store
+
+# How long a single debug frame-capture run lasts before needing a restart — effectively
+# "until stopped", since the frontend explicitly stops it and this is just an upper bound.
+DEBUG_CAPTURE_MAX_SECONDS = 6 * 3600
 
 logger = logging.getLogger("plant")
 
@@ -42,6 +47,8 @@ class PlantSession:
         self.last_error: str | None = None
         self._poll_task: asyncio.Task | None = None
         self._stopping = False
+        self.debug_log: collections.deque = collections.deque(maxlen=1000)
+        self._capture_task: asyncio.Task | None = None
 
     async def connect(self) -> None:
         await self.client.connect()
@@ -57,7 +64,32 @@ class PlantSession:
         self._stopping = True
         if self._poll_task:
             self._poll_task.cancel()
+        self.stop_debug_capture()
         await self.client.close()
+
+    def _on_debug_frame(self, direction: str, data: bytes) -> None:
+        self.debug_log.append({"ts": time.time(), "direction": direction, "hex": data.hex(" ")})
+
+    def debug_capture_active(self) -> bool:
+        return self._capture_task is not None and not self._capture_task.done()
+
+    async def start_debug_capture(self) -> None:
+        if self.debug_capture_active():
+            return
+        self._capture_task = asyncio.create_task(self._debug_capture_loop())
+
+    def stop_debug_capture(self) -> None:
+        if self._capture_task:
+            self._capture_task.cancel()
+            self._capture_task = None
+
+    async def _debug_capture_loop(self) -> None:
+        try:
+            await self.client.capture_frames(self._on_debug_frame, duration=DEBUG_CAPTURE_MAX_SECONDS)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("debug frame capture ended unexpectedly")
 
     async def _poll_loop(self) -> None:
         next_full = time.time() + FULL_REFRESH_SECONDS
@@ -95,8 +127,17 @@ class PlantSession:
         inverter = _safe(lambda: plant.inverter)
         batteries = _safe(lambda: plant.batteries, []) or []
 
-        battery_socs = [b.soc for b in batteries if _safe(lambda: b.soc) is not None]
-        avg_soc = round(sum(battery_socs) / len(battery_socs), 1) if battery_socs else None
+        # Per-pack SOC (plant.batteries) only covers LV systems — HV/AIO/Gateway plants
+        # have no per-pack "soc" field in this library version. inverter.battery_soc
+        # (IR59) is the inverter's own aggregate reading and is present regardless of
+        # battery topology, so it's the primary source; the per-pack average is used
+        # only as a fallback if that's ever unavailable.
+        inverter_soc = _safe(lambda: inverter.battery_soc) if inverter else None
+        if inverter_soc is not None:
+            avg_soc = inverter_soc
+        else:
+            battery_socs = [b.soc for b in batteries if _safe(lambda: b.soc) is not None]
+            avg_soc = round(sum(battery_socs) / len(battery_socs), 1) if battery_socs else None
 
         fault_messages = _safe(lambda: inverter.inverter_fault_messages) if inverter else None
 

@@ -427,6 +427,22 @@ main#app { max-width: 480px; margin: 0 auto; padding: 14px; }
 .toggle input:checked + .toggle-slider { background: var(--grid-color); }
 .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
 
+.debug-output {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 4px 0 12px;
+  min-height: 1.2em;
+}
+.debug-log { max-height: 220px; overflow-y: auto; }
+.debug-log .log-tx { color: var(--home-color); }
+.debug-log .log-rx { color: var(--grid-color); }
+
 .slider-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
 .slider-row:last-of-type { border-bottom: none; }
 .slider-row-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 0.85rem; }

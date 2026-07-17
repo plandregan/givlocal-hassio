@@ -32,6 +32,11 @@ async function apiPut(path, body) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+async function apiDelete(path) {
+  const res = await fetch(API + path, { method: "DELETE" });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
 // ---------------------------------------------------------------------------
 // Tabs / views
@@ -53,6 +58,27 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
 });
 
 $("btn-devices").addEventListener("click", () => {
+  $("tabs").classList.add("hidden");
+  document.querySelectorAll(".view").forEach((v) => v.classList.add("hidden"));
+  $("view-devices").classList.remove("hidden");
+  loadDevices();
+});
+
+$("btn-settings").addEventListener("click", async () => {
+  document.querySelectorAll(".view").forEach((v) => v.classList.add("hidden"));
+  $("view-settings").classList.remove("hidden");
+  try {
+    const cfg = await apiGet("/config");
+    $("cfg-live-refresh").textContent = cfg.live_refresh_seconds + "s";
+    $("cfg-full-refresh").textContent = cfg.full_refresh_seconds + "s";
+  } catch (e) { /* ignore */ }
+});
+
+$("btn-disconnect").addEventListener("click", async () => {
+  if (!confirm("Disconnect from the current device?")) return;
+  await apiPost("/disconnect");
+  currentDevice = null;
+  if (ws) { ws.close(); ws = null; }
   $("tabs").classList.add("hidden");
   document.querySelectorAll(".view").forEach((v) => v.classList.add("hidden"));
   $("view-devices").classList.remove("hidden");
@@ -507,6 +533,100 @@ $("c-import-limit-enabled").addEventListener("change", (e) => {
 $("c-force-off-grid").addEventListener("change", (e) => {
   confirmedPost("/commissioning/force-off-grid", { enabled: e.target.checked },
     e.target.checked ? "Force the inverter OFF GRID now? This isolates it from the grid." : "Restore normal grid connection?");
+});
+
+// ---------------------------------------------------------------------------
+// Debug tools
+// ---------------------------------------------------------------------------
+
+function parseSlave(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const s = value.trim();
+  if (s.toLowerCase().startsWith("0x")) return parseInt(s, 16);
+  return parseInt(s, 10);
+}
+
+$("btn-dbg-read").addEventListener("click", async () => {
+  const out = $("dbg-read-result");
+  out.textContent = "Reading…";
+  try {
+    const result = await apiPost("/debug/read", {
+      reg_type: $("dbg-read-type").value,
+      address: parseInt($("dbg-read-addr").value, 10),
+      count: parseInt($("dbg-read-count").value, 10) || 1,
+      slave: parseSlave($("dbg-read-slave").value),
+    });
+    out.textContent = result.values.join(", ");
+  } catch (e) {
+    out.textContent = "Error: " + e.message;
+  }
+});
+
+$("btn-dbg-write").addEventListener("click", async () => {
+  const addr = $("dbg-write-addr").value;
+  const val = $("dbg-write-value").value;
+  if (addr === "" || val === "") { alert("Address and value are required"); return; }
+  if (!confirm(`Write ${val} to HR(${addr})? This goes directly to the inverter.`)) return;
+  const out = $("dbg-write-result");
+  out.textContent = "Writing…";
+  try {
+    await apiPost("/debug/write", {
+      address: parseInt(addr, 10),
+      value: parseInt(val, 10),
+      slave: parseSlave($("dbg-write-slave").value),
+    });
+    out.textContent = "Write OK";
+  } catch (e) {
+    out.textContent = "Error: " + e.message;
+  }
+});
+
+$("btn-dbg-raw").addEventListener("click", async () => {
+  const hex = $("dbg-raw-hex").value.trim();
+  if (!hex) return;
+  if (!confirm(`Send raw bytes "${hex}" directly to the device socket? No safety checks apply.`)) return;
+  try {
+    const result = await apiPost("/debug/raw-hex", { hex });
+    alert(`Sent ${result.bytes_sent} bytes. Check the Raw Frame Log for any response.`);
+  } catch (e) {
+    alert("Send failed: " + e.message);
+  }
+});
+
+let debugLogPollTimer = null;
+
+function renderDebugLog(entries) {
+  const el = $("dbg-log");
+  el.innerHTML = entries
+    .map((e) => {
+      const ts = new Date(e.ts * 1000).toLocaleTimeString();
+      const cls = e.direction === "tx" ? "log-tx" : "log-rx";
+      return `<div class="${cls}">[${ts}] ${e.direction.toUpperCase()} ${e.hex}</div>`;
+    })
+    .join("");
+  el.scrollTop = el.scrollHeight;
+}
+
+async function pollDebugLog() {
+  try {
+    const data = await apiGet("/debug/log");
+    renderDebugLog(data.entries);
+  } catch (e) { /* ignore */ }
+}
+
+$("btn-dbg-log-start").addEventListener("click", async () => {
+  await apiPost("/debug/capture/start");
+  if (debugLogPollTimer) clearInterval(debugLogPollTimer);
+  debugLogPollTimer = setInterval(pollDebugLog, 1000);
+  pollDebugLog();
+});
+$("btn-dbg-log-stop").addEventListener("click", async () => {
+  await apiPost("/debug/capture/stop");
+  if (debugLogPollTimer) { clearInterval(debugLogPollTimer); debugLogPollTimer = null; }
+});
+$("btn-dbg-log-clear").addEventListener("click", async () => {
+  await apiDelete("/debug/log");
+  $("dbg-log").innerHTML = "";
 });
 
 // ---------------------------------------------------------------------------
